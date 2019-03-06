@@ -1,0 +1,346 @@
+<% template "_top.html" . %>
+
+<hr/>
+
+<div>
+	This argument come from server's c.Render()<br/>
+</div>
+<div>
+	test_arg_key : <% index . "test_arg_key" %>
+</div>
+
+<hr/>
+
+<join-form>
+	<div id="join-form">
+		<div>
+			You can create account using this form
+		</div>
+		<div>
+			UserID : <input type="text" v-model="userid" class="userid" name="userid" placeholder="userid">
+		</div>
+		<div>
+			Password : <input type="password" v-model="password" class="password" name="password" placeholder="password">
+		</div>
+		<div>
+			Result
+			<pre v-html="result">
+			</pre>
+		</div>
+		<button type="button" class="btn-join" v-on:click="do_join">Join</button>
+	</div>
+	<script type="vue">
+	data: function() {
+		var obj = {
+			userid: "",
+			password: "",
+			result: ""
+		};
+		return obj;
+	},
+	methods: {
+		do_join: function() {
+			if(this.userid.length == 0) {
+				alert("Please enter userid");
+				return;
+			}
+			if(this.password.length == 0) {
+				alert("Please enter password");
+				return;
+			}
+			
+			var key = this.getKeyPair(this.userid, this.password);
+			var pk = key.getPublic().encodeCompressed("hex");
+			this.$http.post("/api/accounts", {
+				"public_key" : pk,
+				"user_id" : this.userid,
+			}).then(function(res) {
+				this.result = JSON.stringify(res.body);
+			}, function(err) {
+				this.result = err;
+			});
+		},
+		getKeyPair: function(userid, userpw) {
+			userid = SHA2(userid);
+			userpw = SHA2(userpw);
+			var salt = SHA2("this is fleta sandbox");
+			var keyHex = SHA2(userid+"#"+userpw+"#"+salt);
+			var key = ec.keyPair({
+				priv: keyHex,
+				privEnc: "hex",
+			});
+			return key
+		}
+	}
+	</script>
+</join-form>
+
+<hr/>
+
+<login-form>
+	<div id="login-form">
+		<div>
+			You can login with id and password using this form
+		</div>
+		<div>
+			UserID : <input type="text" v-model="userid" class="userid" name="userid" placeholder="userid">
+		</div>
+		<div>
+			Password : <input type="password" v-model="password" class="password" name="password" placeholder="password">
+		</div>
+		<div>
+			Result
+			<pre v-html="result">
+			</pre>
+		</div>
+		<div>
+			Websocket Pushes
+			<pre v-html="push">
+			</pre>
+		</div>
+		<button type="button" class="btn-login" v-on:click="do_login">Login</button>
+	</div>
+	<script type="vue">
+	data: function() {
+		var obj = {
+			userid: "",
+			password: "",
+			result: "",
+			push: ""
+		};
+		return obj;
+	},
+	methods: {
+		do_login: function() {
+			if(this.userid.length == 0) {
+				alert("Please enter userid");
+				return;
+			}
+			if(this.password.length == 0) {
+				alert("Please enter password");
+				return;
+			}
+			
+			var key = this.getKeyPair(this.userid, this.password);
+			var pk = key.getPublic().encodeCompressed("hex");
+			this.$http.get("/api/accounts?pubkey="+pk).then(function(res) {
+				window.address = res.body.address;
+				window.utxos = res.body.utxos;
+				window.key = key;
+				this.result = JSON.stringify(res.body);
+
+				if (location.protocol != 'https:')	{
+					var wsUri = "ws://"+window.location.host+"/websocket/"+window.address;
+				} else {
+					var wsUri = "wss://"+window.location.host+"/websocket/"+window.address;
+				}
+				function connect() {
+					var ws = new WebSocket(wsUri)
+					ws._init = false;
+					ws.onopen = function(e) { onOpen(ws, e) };
+					ws.onclose = function(e) { onClose(ws, e) };
+					ws.onerror = function(e) { onError(ws, e) };
+					ws.onmessage = function(e) { onMessage(ws, e) };
+					return ws;
+				}
+				var ws = connect();
+				var disconnectedCount = 0;
+				function onOpen(ws,  e) {
+					disconnectedCount = 1;
+					console.log("CONNECTED");
+				}
+				function onClose(ws,  e) {
+					disconnectedCount = (disconnectedCount+1) * 2;
+					console.log("DISCONNECTED");
+					(function () {
+						setTimeout(function () {
+							ws = connect();
+						}, 1000*disconnectedCount);
+					})();
+				}
+				function onError(ws,  e) {
+					console.log("ERROR", e);
+				}
+
+				var _this = this;
+				function onMessage(ws,  e) {
+					if(!ws._init) {
+						ws._init = true;
+
+						var msg = new Buffer(e.data, "hex");
+						var sig = window.key.sign(msg);
+						ws.send(buf2hex(sig.r.toArrayLike(Buffer, "be", 32)) + buf2hex(sig.s.toArrayLike(Buffer, "be", 32)) + "0" + sig.recoveryParam);
+					} else {
+						var noti = null;
+						if (typeof e.data === "string") {
+							noti = JSON.parse(e.data);
+						} else {
+							noti = e.data;
+						}
+
+						switch(noti.type) {
+						case "add_count": //AddCount
+							_this.push += "<br/>" + JSON.stringify(noti);
+							break;
+						case "__CONNECT__": //duplicated connection
+							alert("Duplicated Connection");
+							location.reload();
+							break;
+						}
+					}
+				}
+
+			}, function(err) {
+				this.result = err;
+			});
+		},
+		getKeyPair: function(userid, userpw) {
+			userid = SHA2(userid);
+			userpw = SHA2(userpw);
+			var salt = SHA2("this is fleta sandbox");
+			var keyHex = SHA2(userid+"#"+userpw+"#"+salt);
+			var key = ec.keyPair({
+				priv: keyHex,
+				privEnc: "hex",
+			});
+			return key
+		}
+	}
+	</script>
+</login-form>
+
+<hr/>
+
+<game-form>
+	<div id="game-form">
+		<div>
+			You can get a game data using this form<br/>
+			You can acquire your address when login
+		</div>
+		<div>
+			Address : <input type="text" v-model="address" class="address" name="address" placeholder="address">
+		</div>
+		<div>
+			Result
+			<pre v-html="result">
+			</pre>
+		</div>
+		<button type="button" class="btn-send" v-on:click="do_send">Send</button>
+	</div>
+	<script type="vue">
+	data: function() {
+		var obj = {
+			address: "",
+			result: ""
+		};
+		return obj;
+	},
+	methods: {
+		do_send: function() {
+			if(this.address.length == 0) {
+				alert("Please enter address");
+				return;
+			}
+			this.$http.get("/api/games/" + this.address).then(function(res) {
+				this.result = JSON.stringify(res.body);
+			}, function(err) {
+				this.result = err;
+			});
+		}
+	}
+	</script>
+</game-form>
+
+<hr/>
+
+<tx-form>
+	<div id="tx-form">
+		<div>
+			You can send transaction using this form<br/>
+			You should login before to send
+		</div>
+		<div>
+			Count : <input type="text" v-model="count" class="count" name="count" placeholder="count">
+		</div>
+		<div>
+			Result 1 (tx)
+			<pre v-html="result1">
+			</pre>
+		</div>
+		<div>
+			Result 2 (commit)
+			<pre v-html="result2">
+			</pre>
+		</div>
+		<button type="button" class="btn-send" v-on:click="do_send">Send</button>
+	</div>
+	<script type="vue">
+	data: function() {
+		var obj = {
+			count: 1,
+			result1: "",
+			result2: ""
+		};
+		return obj;
+	},
+	methods: {
+		do_send: function() {
+			if(window.address == null) {
+				alert("Please login first");
+				return;
+			}
+			if(this.count.length == 0) {
+				alert("Please enter count");
+				return;
+			}
+			var count = parseInt(this.count);
+			if(isNaN(count)) {
+				alert("Please enter valid count");
+				return;
+			}
+
+			var utxo = window.utxos[0];
+			window.utxos.splice(0, 1);
+			
+			this.$http.post("/api/games/"  + window.address + "/commands/add_count", {
+				utxo: utxo,
+				count: count
+			}).then(function(res) {
+				this.result1 = JSON.stringify(res.body);
+
+				var data = res.body;
+				var msg = new Buffer(data.hash_hex, "hex");
+				var sig = window.key.sign(msg);
+				var SIG_HEX = buf2hex(sig.r.toArrayLike(Buffer, "be", 32)) + buf2hex(sig.s.toArrayLike(Buffer, "be", 32)) + "0" + sig.recoveryParam;
+
+				this.$http.post("/api/games/"  + window.address + "/commands/commit", {
+					"type": data.type,
+					"tx_hex": data.tx_hex,
+					"sig_hex": SIG_HEX
+				}).then(function(res) {
+					this.result2 = JSON.stringify(res.body);
+				}, function(err) {
+					this.result2 = err;
+				});
+			}, function(err) {
+				this.result1 = err;
+			});
+		},
+		getKeyPair: function(userid, userpw) {
+			userid = SHA2(userid);
+			userpw = SHA2(userpw);
+			var salt = SHA2("this is fleta sandbox");
+			var keyHex = SHA2(userid+"#"+userpw+"#"+salt);
+			var key = ec.keyPair({
+				priv: keyHex,
+				privEnc: "hex",
+			});
+			return key
+		}
+	}
+	</script>
+</tx-form>
+
+<hr/>
+
+<% template "_bottom.html" . %>
