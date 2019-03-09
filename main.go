@@ -27,6 +27,7 @@ import (
 	"github.com/fletaio/framework/router"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
+	"github.com/labstack/echo/middleware"
 )
 
 // consts
@@ -233,6 +234,7 @@ func main() {
 	GameKernel.AddEventHandler(ew)
 
 	e := echo.New()
+	e.Use(middleware.CORS())
 	web := NewWebServer(e, "./webfiles")
 	e.Renderer = web
 	web.SetupStatic(e, "/public", "./webfiles/public")
@@ -492,7 +494,7 @@ func main() {
 
 		res := &WebGameRes{
 			Height: int(Height),
-			Count:  int(gd.Count),
+			Count:  string(gd.Count),
 		}
 
 		//////////////////////////////////////////////////////////////////////
@@ -526,9 +528,11 @@ func main() {
 		// Sandbox Area Begin
 		//////////////////////////////////////////////////////////////////////
 
-		if req.Count == 0 {
-			return ErrInvalidCount
-		}
+		/*
+			if req.Count == 0 {
+				return ErrInvalidCount
+			}
+		*/
 
 		//////////////////////////////////////////////////////////////////////
 		// Sandbox Area End
@@ -554,7 +558,7 @@ func main() {
 		tx.Timestamp_ = uint64(time.Now().UnixNano())
 		tx.Vin = []*transaction.TxIn{transaction.NewTxIn(req.UTXO)}
 		tx.Address = addr
-		tx.Count = uint64(req.Count)
+		tx.Count = string(req.Count)
 
 		//////////////////////////////////////////////////////////////////////
 		// Sandbox Area End
@@ -690,7 +694,7 @@ func (ew *EventWatcher) processBlock(b *block.Block, ctx *data.Context) {
 				continue
 			}
 			noti.Type = "add_count"
-			noti.Count = int(tx.Count)
+			noti.Count = string(tx.Count)
 			ew.Notify(tx.Address, noti)
 		}
 	}

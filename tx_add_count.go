@@ -82,7 +82,7 @@ func init() {
 			// Sandbox Area Begin
 			//////////////////////////////////////////////////////////////////////
 
-			gd.Count += tx.Count
+			gd.Count = tx.Count
 
 			//////////////////////////////////////////////////////////////////////
 			// Sandbox Area End
@@ -126,7 +126,7 @@ func init() {
 type AddCountTx struct {
 	utxo_tx.Base
 	Address common.Address
-	Count   uint64
+	Count   string
 }
 
 // Hash returns the hash value of it
@@ -147,7 +147,7 @@ func (tx *AddCountTx) WriteTo(w io.Writer) (int64, error) {
 	} else {
 		wrote += n
 	}
-	if n, err := util.WriteUint64(w, tx.Count); err != nil {
+	if n, err := util.WriteString(w, tx.Count); err != nil {
 		return wrote, err
 	} else {
 		wrote += n
@@ -168,7 +168,7 @@ func (tx *AddCountTx) ReadFrom(r io.Reader) (int64, error) {
 	} else {
 		read += n
 	}
-	if v, n, err := util.ReadUint64(r); err != nil {
+	if v, n, err := util.ReadString(r); err != nil {
 		return read, err
 	} else {
 		read += n

@@ -27,20 +27,20 @@ var (
 
 type WebAddCountReq struct {
 	UTXO  uint64 `json:"utxo"` // DO NOT CHANGE
-	Count int    `json:"count"`
+	Count string `json:"count"`
 }
 
 type WebNotify struct {
 	Height int    `json:"height"` // DO NOT CHANGE
 	Type   string `json:"type"`   // DO NOT CHANGE
-	Count  int    `json:"count"`
+	Count  string `json:"count"`
 	UTXO   int    `json:"utxo"`  // DO NOT CHANGE
 	Error  string `json:"error"` // DO NOT CHANGE
 }
 
 type WebGameRes struct {
-	Height int `json:"height"` // DO NOT CHANGE
-	Count  int `json:"count"`
+	Height int    `json:"height"` // DO NOT CHANGE
+	Count  string `json:"count"`
 }
 
 // transaction_type transaction types
@@ -67,13 +67,13 @@ func initSandboxComponent(act *data.Accounter, tran *data.Transactor) error {
 
 // GameData stores all data of the game
 type GameData struct {
-	Count uint64
+	Count string
 }
 
 // NewGameData returns a GameData
 func NewGameData() *GameData {
 	gd := &GameData{
-		Count: 0,
+		Count: "",
 	}
 	return gd
 }
@@ -81,7 +81,7 @@ func NewGameData() *GameData {
 // WriteTo is a serialization function
 func (gd *GameData) WriteTo(w io.Writer) (int64, error) {
 	var wrote int64
-	if n, err := util.WriteUint64(w, gd.Count); err != nil {
+	if n, err := util.WriteString(w, gd.Count); err != nil {
 		return wrote, err
 	} else {
 		wrote += n
@@ -92,7 +92,7 @@ func (gd *GameData) WriteTo(w io.Writer) (int64, error) {
 // ReadFrom is a deserialization function
 func (gd *GameData) ReadFrom(r io.Reader) (int64, error) {
 	var read int64
-	if v, n, err := util.ReadUint64(r); err != nil {
+	if v, n, err := util.ReadString(r); err != nil {
 		return read, err
 	} else {
 		read += n
