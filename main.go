@@ -493,8 +493,8 @@ func main() {
 		//////////////////////////////////////////////////////////////////////
 
 		res := &WebGameRes{
-			Height: int(Height),
-			Count:  string(gd.Count),
+			Height:  int(Height),
+			Payload: string(gd.Payload),
 		}
 
 		//////////////////////////////////////////////////////////////////////
@@ -558,7 +558,7 @@ func main() {
 		tx.Timestamp_ = uint64(time.Now().UnixNano())
 		tx.Vin = []*transaction.TxIn{transaction.NewTxIn(req.UTXO)}
 		tx.Address = addr
-		tx.Count = string(req.Count)
+		tx.Payload = string(req.Payload)
 
 		//////////////////////////////////////////////////////////////////////
 		// Sandbox Area End
@@ -694,7 +694,7 @@ func (ew *EventWatcher) processBlock(b *block.Block, ctx *data.Context) {
 				continue
 			}
 			noti.Type = "add_count"
-			noti.Count = string(tx.Count)
+			noti.Payload = string(tx.Payload)
 			ew.Notify(tx.Address, noti)
 		}
 	}

@@ -82,7 +82,7 @@ func init() {
 			// Sandbox Area Begin
 			//////////////////////////////////////////////////////////////////////
 
-			gd.Count = tx.Count
+			gd.Payload = tx.Payload
 
 			//////////////////////////////////////////////////////////////////////
 			// Sandbox Area End
@@ -126,7 +126,7 @@ func init() {
 type AddCountTx struct {
 	utxo_tx.Base
 	Address common.Address
-	Count   string
+	Payload string
 }
 
 // Hash returns the hash value of it
@@ -147,7 +147,7 @@ func (tx *AddCountTx) WriteTo(w io.Writer) (int64, error) {
 	} else {
 		wrote += n
 	}
-	if n, err := util.WriteString(w, tx.Count); err != nil {
+	if n, err := util.WriteString(w, tx.Payload); err != nil {
 		return wrote, err
 	} else {
 		wrote += n
@@ -172,7 +172,7 @@ func (tx *AddCountTx) ReadFrom(r io.Reader) (int64, error) {
 		return read, err
 	} else {
 		read += n
-		tx.Count = v
+		tx.Payload = v
 	}
 	return read, nil
 }
@@ -216,8 +216,8 @@ func (tx *AddCountTx) MarshalJSON() ([]byte, error) {
 		buffer.Write(bs)
 	}
 	buffer.WriteString(`,`)
-	buffer.WriteString(`"count":`)
-	if bs, err := json.Marshal(tx.Count); err != nil {
+	buffer.WriteString(`"payload":`)
+	if bs, err := json.Marshal(tx.Payload); err != nil {
 		return nil, err
 	} else {
 		buffer.Write(bs)
